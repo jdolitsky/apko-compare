@@ -32,28 +32,25 @@ jobs:
       matrix: ${{ steps.generate-matrix.outputs.matrix }}
       matrix-unique-images: ${{ steps.generate-matrix.outputs.matrix-unique-images }}
     steps:
-      # Checkout public repo to get actions
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
           repository: chainguard-images/images
-
-      # For manual builds, build only the image requested
-      - id: generate-matrix-manual
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.only != '' }}
-        uses: ./.github/actions/generate-matrix
+          path: monopod-setup-gha
+      - uses: actions/setup-go@v3
         with:
-          repository: chainguard-images/images
-          modified-files: images/${{ inputs.only }}/image.yaml
-
-      # Generate the final matrix for build based on the above
+          go-version: 1.19
       - id: generate-matrix
         run: |
           set -x
-          trap "rm -f matrix.json matrix-unique-images.json" EXIT
-          echo '${{ steps.generate-matrix-manual.outputs.matrix }}' > matrix.json
-          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
-          echo '${{ steps.generate-matrix-manual.outputs.matrix-unique-images }}' > matrix-unique-images.json
-          echo "matrix-unique-images=$(cat matrix-unique-images.json)" >> $GITHUB_OUTPUT
+          (cd monopod-setup-gha/monopod/ && go build -o /tmp/monopod monopod.go)
+          cd monopod-setup-gha/
+          modified_files=""
+          if [[ "${{ inputs.only }}" != "" ]]; then
+            modified_files="images/${{ inputs.only }}/image.yaml"
+          fi
+          echo "matrix=$(/tmp/monopod matrix --modified-files=${{ inputs.modified-files }})" >> $GITHUB_OUTPUT
+          cd ../
+          rm -rf monopod-setup-gha/ /tmp/monopod
 
   build:
     runs-on: ubuntu-latest
