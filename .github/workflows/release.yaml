@@ -1,7 +1,4 @@
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       only:
@@ -69,6 +66,5 @@ jobs:
       packages: write
       contents: read
     steps:
-      - uses: ./.github/actions/release-image
-        run: |
+      - run: |
           echo '${{ matrix }}'
