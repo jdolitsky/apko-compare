@@ -6,13 +6,13 @@ on:
         type: string
         required: false
         default: ''
-      commit-a:
-        description: 'apko commit A'
+      ref-a:
+        description: 'apko ref A'
         type: string
         required: true
         default: 'v0.6.0'
-      commit-b:
-        description: 'apko commit B'
+      ref-b:
+        description: 'apko ref B'
         type: string
         required: true
         default: 'main'
@@ -63,5 +63,38 @@ jobs:
       packages: write
       contents: read
     steps:
+      - name: 'Fetch apk-tools nightly'
+        run: |
+          sudo apt install -y unzip
+          wget -O apk-tools-nightly.zip 'https://gitlab.alpinelinux.org/alpine/apk-tools/-/jobs/artifacts/2.12-stable/download?job=build-static:+[x86_64]'
+          unzip apk-tools-nightly.zip 'src/apk.static-x86_64'
+          sudo mv 'src/apk.static-x86_64' /sbin/apk
+          rm -rf src apk-tools-nightly.zip
+      - name: 'Set up apk-tools in overlay mode'
+        run: |
+          sudo apk add --initdb --root=/
+          (cat <<_EOF_
+          https://dl-cdn.alpinelinux.org/alpine/edge/main
+          _EOF_
+          ) | sudo tee /etc/apk/repositories
+      - name: 'Fetch and install alpine keyring'
+        run: |
+          sudo apk update --allow-untrusted
+          sudo apk add --allow-untrusted alpine-keys
       - run: |
           echo '${{ matrix }}'
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          repository: chainguard-dev/apko
+          ref: ${{ inputs.ref-a }}
+          path: apko-a
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          repository: chainguard-dev/apko
+          ref: ${{ inputs.ref-b }}
+          path: apko-b
+      - name: 'Build both apkos'
+        run: |
+          (cd apko-a && make apko && mv apko /tmp/apko-a && /tmp/apko-a version)
+          (cd apko-b && make apko && mv apko /tmp/apko-b && /tmp/apko-b version)
+          rm -rf apko-a apko-b
