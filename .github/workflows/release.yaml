@@ -20,7 +20,7 @@ on:
         description: 'namespace under ghcr.io/jdolitsky/apko-compare'
         type: string
         required: true
-        default: 'ghcr.io/jdolitsky/apko-compare/testing'
+        default: 'testing'
 permissions:
   packages: write
   contents: read
@@ -48,7 +48,7 @@ jobs:
           if [[ "${{ inputs.only }}" != "" ]]; then
             modified_files="images/${{ inputs.only }}/image.yaml"
           fi
-          echo "matrix=$(/tmp/monopod matrix --modified-files=${{ inputs.modified-files }})" >> $GITHUB_OUTPUT
+          echo "matrix=$(/tmp/monopod matrix --modified-files=${modified_files})" >> $GITHUB_OUTPUT
           cd ../
           rm -rf monopod-setup-gha/ /tmp/monopod
 
@@ -81,8 +81,6 @@ jobs:
         run: |
           sudo apk update --allow-untrusted
           sudo apk add --allow-untrusted alpine-keys
-      - run: |
-          echo '${{ matrix }}'
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
           repository: chainguard-dev/apko
@@ -98,3 +96,20 @@ jobs:
           (cd apko-a && make apko && mv apko /tmp/apko-a && /tmp/apko-a version)
           (cd apko-b && make apko && mv apko /tmp/apko-b && /tmp/apko-b version)
           rm -rf apko-a apko-b
+      - name: Re-download images
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          repository: chainguard-images/images
+      - name: 'Login to GHCR'
+        run: |
+          docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
+      - name: 'Build image with apko-a'
+        run: |
+          /tmp/apko-a publish --debug \
+            "${{ matrix.apkoConfig }}" \
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${apkoTargetTag}"
+      - name: 'Build image with apko-b'
+        run: |
+          /tmp/apko-b publish --debug \
+            "${{ matrix.apkoConfig }}" \
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-b/${{matrix.imageName}}:${apkoTargetTag}"
