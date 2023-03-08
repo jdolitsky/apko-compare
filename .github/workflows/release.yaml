@@ -105,11 +105,11 @@ jobs:
           docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
       - name: 'Build image with apko-a'
         run: |
-          /tmp/apko-a publish --debug \
+          sudo /tmp/apko-a publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${apkoTargetTag}"
       - name: 'Build image with apko-b'
         run: |
-          /tmp/apko-b publish --debug \
+          sudo /tmp/apko-b publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-b/${{matrix.imageName}}:${apkoTargetTag}"
