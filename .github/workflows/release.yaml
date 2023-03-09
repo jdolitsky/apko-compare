@@ -73,12 +73,6 @@ jobs:
       packages: write
       contents: read
     steps:
-      - name: 'Update package repository indexes'
-        run: |
-          sudo apt update
-      - name: 'Install qemu emulator binaries'
-        run: |
-          sudo apt install -y qemu-user
       - name: 'Fetch apk-tools nightly'
         run: |
           sudo apt install -y unzip
