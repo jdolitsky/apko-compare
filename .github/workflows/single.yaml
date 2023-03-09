@@ -110,13 +110,9 @@ jobs:
         with:
           path: ./apko/apko
           key: ${{ github.sha }}
-      - name: list
-        run: find . -exec ls -l {} \;
       - name: 'Build image with apko'
         run: |
           set -x
-          ls -l ./apko/apko
-          file ./apko/apko
           ./apko/apko publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
