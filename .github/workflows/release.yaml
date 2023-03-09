@@ -90,15 +90,19 @@ jobs:
           COPY apko-a /tmp/build-me
           RUN cd /tmp/build-me && make apko install && apko version
           EOL
-          cat >./Dockerfile.b <<EOL
-          FROM ghcr.io/wolfi-dev/sdk:latest
-          COPY apko-a /tmp/build-me
-          RUN cd /tmp/build-me && make apko install && apko version
-          EOL
+
           docker build -f Dockerfile.a -t apko-a:latest .
           docker run --rm --entrypoint apko apko-a:latest version
+
+          cat >./Dockerfile.b <<EOL
+          FROM ghcr.io/wolfi-dev/sdk:latest
+          COPY apko-b /tmp/build-me
+          RUN cd /tmp/build-me && make apko install && apko version
+          EOL
+
           docker build -f Dockerfile.b -t apko-b:latest .
           docker run --rm --entrypoint apko apko-b:latest version
+
           rm -rf apko-a apko-b
       - name: Re-download images
         uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
