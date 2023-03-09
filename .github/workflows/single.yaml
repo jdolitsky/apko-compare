@@ -95,11 +95,6 @@ jobs:
       packages: write
       contents: read
     steps:
-      - name: recover the cached the binary
-        uses: actions/cache/restore@v3
-        with:
-          path: ./apko/apko
-          key: ${{ github.sha }}
       - name: Re-download images
         uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
@@ -110,9 +105,18 @@ jobs:
           mkdir -p "${DOCKER_CONFIG}"
           echo '{}' > "${DOCKER_CONFIG}/config.json"
           docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
+      - name: recover the cached binary
+        uses: actions/cache/restore@v3
+        with:
+          path: ./apko/apko
+          key: ${{ github.sha }}
+      - name: list
+        run: find . -exec ls -l {} \;
       - name: 'Build image with apko'
         run: |
           set -x
+          ls -l ./apko/apko
+          file ./apko/apko
           ./apko/apko publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
