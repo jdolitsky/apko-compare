@@ -2,7 +2,7 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Specific image name to build (blank for all from https://github.com/chainguard-images/images)'
+        description: 'Specific image name to build, e.g. "wait-for-it" or "go" (blank for all from https://github.com/chainguard-images/images)'
         type: string
         required: false
         default: ''
