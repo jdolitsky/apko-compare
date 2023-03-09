@@ -111,9 +111,40 @@ jobs:
           path: ./apko/apko
           key: ${{ github.sha }}
       - name: 'Build image with apko'
+        id: build
         run: |
           set -x
           export DOCKER_CONFIG="docker-tmp"
+          image="ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
           ./apko/apko publish --debug \
             "${{ matrix.apkoConfig }}" \
-            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
+            "$image"
+          echo "::set-output name=image::$image"
+      ## Write for matrix outputs workaround 
+      - uses: cloudposse/github-action-matrix-outputs-write@main
+        id: out
+        with:
+          matrix-step-name: ${{ github.job }}
+          matrix-key: ${{ matrix.apkoConfig }}
+          outputs: |-
+            image: ${{ steps.build.outputs.image }}
+
+    ## Read matrix outputs 
+  report:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: cloudposse/github-action-matrix-outputs-read@main
+        id: read
+        with:
+          matrix-step-name: build
+      - name: install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install jq
+      - id: images
+        name: List images
+        run: |
+          cat <<EOF | jq -r '.image | to_entries[] | .value'
+          ${{ steps.read.outputs.result }}
+          EOF
