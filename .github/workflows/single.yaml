@@ -113,6 +113,7 @@ jobs:
       - name: 'Build image with apko'
         run: |
           set -x
+          export DOCKER_CONFIG="docker-tmp"
           ./apko/apko publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
