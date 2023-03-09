@@ -6,11 +6,21 @@ on:
         type: string
         required: false
         default: ''
+      repo-a:
+        description: 'apko repo A'
+        type: string
+        required: true
+        default: 'chainguard-dev/apko'
       ref-a:
         description: 'apko ref A'
         type: string
         required: true
         default: 'v0.6.0'
+      repo-b:
+        description: 'apko repo B'
+        type: string
+        required: true
+        default: 'chainguard-dev/apko'
       ref-b:
         description: 'apko ref B'
         type: string
@@ -83,12 +93,12 @@ jobs:
           sudo apk add --allow-untrusted alpine-keys
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
-          repository: chainguard-dev/apko
+          repository: ${{ inputs.repo-a }}
           ref: ${{ inputs.ref-a }}
           path: apko-a
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
-          repository: chainguard-dev/apko
+          repository: ${{ inputs.repo-b }}
           ref: ${{ inputs.ref-b }}
           path: apko-b
       - name: 'Build both apkos'
