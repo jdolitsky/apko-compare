@@ -117,14 +117,14 @@ jobs:
       - name: 'Build image with apko-a'
         run: |
           set -x
-          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
+          docker run --rm -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-a:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
       - name: 'Build image with apko-b'
         run: |
           set -x
-          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
+          docker run --rm -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-b:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
