@@ -118,10 +118,10 @@ jobs:
           set -x
           sudo /tmp/apko-a publish --debug \
             "${{ matrix.apkoConfig }}" \
-            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${matrix.apkoTargetTag}"
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
       - name: 'Build image with apko-b'
         run: |
           set -x
           sudo /tmp/apko-b publish --debug \
             "${{ matrix.apkoConfig }}" \
-            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-b/${{matrix.imageName}}:${matrix.apkoTargetTag}"
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-b/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
