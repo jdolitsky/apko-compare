@@ -73,28 +73,6 @@ jobs:
       packages: write
       contents: read
     steps:
-      - name: 'Fetch apk-tools nightly'
-        run: |
-          sudo apt install -y unzip
-          wget -O apk-tools-nightly.zip 'https://gitlab.alpinelinux.org/alpine/apk-tools/-/jobs/artifacts/2.12-stable/download?job=build-static:+[x86_64]'
-          unzip apk-tools-nightly.zip 'src/apk.static-x86_64'
-          sudo mv 'src/apk.static-x86_64' /sbin/apk
-          rm -rf src apk-tools-nightly.zip
-      - name: 'Set up apk-tools in overlay mode'
-        run: |
-          sudo apk add --initdb --root=/
-          (cat <<_EOF_
-          https://dl-cdn.alpinelinux.org/alpine/edge/main
-          _EOF_
-          ) | sudo tee /etc/apk/repositories
-      - name: 'Fetch and install alpine keyring'
-        run: |
-          sudo apk update --allow-untrusted
-          sudo apk add --allow-untrusted alpine-keys
-      - name: 'Install dependencies'
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential libc-bin
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
           repository: ${{ inputs.repo-a }}
@@ -107,8 +85,20 @@ jobs:
           path: apko-b
       - name: 'Build both apkos'
         run: |
-          (cd apko-a && make apko && mv apko /tmp/apko-a && /tmp/apko-a version)
-          (cd apko-b && make apko && mv apko /tmp/apko-b && /tmp/apko-b version)
+          cat >/tmp/Dockerfile.a <<EOL
+          FROM ghcr.io/wolfi-dev/sdk:latest
+          COPY apko-a /tmp/build-me
+          RUN cd /tmp/build-me && make apko install
+          EOL
+          cat >/tmp/Dockerfile.b <<EOL
+          FROM ghcr.io/wolfi-dev/sdk:latest
+          COPY apko-a /tmp/build-me
+          RUN cd /tmp/build-me && make apko install
+          EOL
+          docker build -f Dockerfile.a apko-a:latest
+          docker run --rm --entrypoint apko apko-a:latest version
+          docker build -f Dockerfile.b apko-b:latest
+          docker run --rm --entrypoint apko apko-b:latest version
           rm -rf apko-a apko-b
       - name: Re-download images
         uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
@@ -116,16 +106,21 @@ jobs:
           repository: chainguard-images/images
       - name: 'Login to GHCR'
         run: |
+          export DOCKER_CONFIG=".docker-tmp"
+          mkdir -p "${DOCKER_CONFIG}"
+          echo '{}' > "${DOCKER_CONFIG}/config.json"
           docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
       - name: 'Build image with apko-a'
         run: |
           set -x
-          sudo /tmp/apko-a publish --debug \
+          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/.docker-tmp" \
+            --entrypoint apko apko-a:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
       - name: 'Build image with apko-b'
         run: |
           set -x
-          sudo /tmp/apko-b publish --debug \
+          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/.docker-tmp" \
+            --entrypoint apko apko-b:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
-            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-b/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
