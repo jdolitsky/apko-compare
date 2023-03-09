@@ -85,19 +85,19 @@ jobs:
           path: apko-b
       - name: 'Build both apkos'
         run: |
-          cat >/tmp/Dockerfile.a <<EOL
+          cat >./Dockerfile.a <<EOL
           FROM ghcr.io/wolfi-dev/sdk:latest
           COPY apko-a /tmp/build-me
-          RUN cd /tmp/build-me && make apko install
+          RUN cd /tmp/build-me && make apko install && apko version
           EOL
-          cat >/tmp/Dockerfile.b <<EOL
+          cat >./Dockerfile.b <<EOL
           FROM ghcr.io/wolfi-dev/sdk:latest
           COPY apko-a /tmp/build-me
-          RUN cd /tmp/build-me && make apko install
+          RUN cd /tmp/build-me && make apko install && apko version
           EOL
-          docker build -f Dockerfile.a apko-a:latest
+          docker build -f Dockerfile.a -t apko-a:latest .
           docker run --rm --entrypoint apko apko-a:latest version
-          docker build -f Dockerfile.b apko-b:latest
+          docker build -f Dockerfile.b -t apko-b:latest .
           docker run --rm --entrypoint apko apko-b:latest version
           rm -rf apko-a apko-b
       - name: Re-download images
@@ -106,21 +106,21 @@ jobs:
           repository: chainguard-images/images
       - name: 'Login to GHCR'
         run: |
-          export DOCKER_CONFIG=".docker-tmp"
+          export DOCKER_CONFIG="docker-tmp"
           mkdir -p "${DOCKER_CONFIG}"
           echo '{}' > "${DOCKER_CONFIG}/config.json"
           docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
       - name: 'Build image with apko-a'
         run: |
           set -x
-          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/.docker-tmp" \
+          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-a:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
       - name: 'Build image with apko-b'
         run: |
           set -x
-          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/.docker-tmp" \
+          docker run --rm -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-b:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
