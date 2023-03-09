@@ -87,6 +87,7 @@ jobs:
         run: |
           cat >./Dockerfile.a <<EOL
           FROM ghcr.io/wolfi-dev/sdk:latest
+          RUN apk add build-base
           COPY apko-a /tmp/build-me
           RUN cd /tmp/build-me && make apko install && apko version
           EOL
@@ -96,6 +97,7 @@ jobs:
 
           cat >./Dockerfile.b <<EOL
           FROM ghcr.io/wolfi-dev/sdk:latest
+          RUN apk add build-base
           COPY apko-b /tmp/build-me
           RUN cd /tmp/build-me && make apko install && apko version
           EOL
@@ -117,14 +119,14 @@ jobs:
       - name: 'Build image with apko-a'
         run: |
           set -x
-          docker run --rm -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
+          docker run --rm --privileged -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-a:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
       - name: 'Build image with apko-b'
         run: |
           set -x
-          docker run --rm -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
+          docker run --rm --privileged -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-b:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
