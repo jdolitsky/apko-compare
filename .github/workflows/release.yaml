@@ -12,10 +12,10 @@ on:
         required: true
         default: 'chainguard-dev/apko'
       ref-a:
-        description: 'apko ref A'
+        description: 'apko ref A (default was version being used for a while)'
         type: string
         required: true
-        default: 'v0.6.0'
+        default: 'cf9e6f264bcf38fd8ebbd95fb6a954cce5d16b57'
       repo-b:
         description: 'apko repo B'
         type: string
