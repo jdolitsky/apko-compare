@@ -116,17 +116,17 @@ jobs:
           mkdir -p "${DOCKER_CONFIG}"
           echo '{}' > "${DOCKER_CONFIG}/config.json"
           docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
-      - name: 'Build image with apko-a'
-        run: |
-          set -x
-          docker run --rm --privileged -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
-            --entrypoint apko apko-a:latest publish --debug \
-            "${{ matrix.apkoConfig }}" \
-            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
       - name: 'Build image with apko-b'
         run: |
           set -x
           docker run --rm --privileged -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
             --entrypoint apko apko-b:latest publish --debug \
+            "${{ matrix.apkoConfig }}" \
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
+      - name: 'Build image with apko-a'
+        run: |
+          set -x
+          docker run --rm --privileged -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
+            --entrypoint apko apko-a:latest publish --debug \
             "${{ matrix.apkoConfig }}" \
             "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko-a/${{matrix.imageName}}:${{matrix.apkoTargetTag}}"
