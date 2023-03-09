@@ -1,0 +1,110 @@
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Specific image name to build (blank for all from https://github.com/chainguard-images/images)'
+        type: string
+        required: false
+        default: ''
+      repo:
+        description: 'apko repo'
+        type: string
+        required: true
+        default: 'chainguard-dev/apko'
+      ref:
+        description: 'apko ref, can be commit or tag'
+        type: string
+        required: true
+        default: 'main'
+      namespace:
+        description: 'namespace under ghcr.io/jdolitsky/apko-compare'
+        type: string
+        required: true
+        default: 'testing'
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+jobs:
+  get-time:
+    runs-on: ubuntu-latest
+    outputs:
+      time: ${{ steps.current-time.outputs.formattedTime }}
+    steps:
+      - name: Get current time
+        uses: josStorer/get-current-time@v2
+        id: current-time
+        with:
+          format: YYYYMMDD-HHMMSS
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+      matrix-unique-images: ${{ steps.generate-matrix.outputs.matrix-unique-images }}
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          repository: chainguard-images/images
+          path: monopod-setup-gha
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - id: generate-matrix
+        run: |
+          set -x
+          (cd monopod-setup-gha/monopod/ && go build -o /tmp/monopod monopod.go)
+          cd monopod-setup-gha/
+          modified_files=""
+          if [[ "${{ inputs.only }}" != "" ]]; then
+            modified_files="images/${{ inputs.only }}/image.yaml"
+          fi
+          echo "matrix=$(/tmp/monopod matrix --modified-files=${modified_files})" >> $GITHUB_OUTPUT
+          cd ../
+          rm -rf monopod-setup-gha/ /tmp/monopod
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [generate-matrix,get-time]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.ref }}
+          path: apko
+      - name: 'Build apko'
+        run: |
+          cat >./Dockerfile <<EOL
+          FROM ghcr.io/wolfi-dev/sdk:latest
+          RUN apk add build-base
+          COPY apko /tmp/build-me
+          RUN cd /tmp/build-me && make apko install && apko version
+          EOL
+
+          docker build -f Dockerfile.a -t apko:latest .
+          docker run --rm --entrypoint apko apko:latest version
+
+          rm -rf apko
+      - name: Re-download images
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          repository: chainguard-images/images
+      - name: 'Login to GHCR'
+        run: |
+          export DOCKER_CONFIG="docker-tmp"
+          mkdir -p "${DOCKER_CONFIG}"
+          echo '{}' > "${DOCKER_CONFIG}/config.json"
+          docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ github.token }}"
+      - name: 'Build image with apko'
+        run: |
+          set -x
+          docker run --rm --privileged -w /work -v "${PWD}:/work" -e DOCKER_CONFIG="/work/docker-tmp" \
+            --entrypoint apko apko:latest publish --debug \
+            "${{ matrix.apkoConfig }}" \
+            "ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
