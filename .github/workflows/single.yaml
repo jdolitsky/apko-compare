@@ -87,7 +87,7 @@ jobs:
           RUN cd /tmp/build-me && make apko install && apko version
           EOL
 
-          docker build -f Dockerfile.a -t apko:latest .
+          docker build -f Dockerfile -t apko:latest .
           docker run --rm --entrypoint apko apko:latest version
 
           rm -rf apko
