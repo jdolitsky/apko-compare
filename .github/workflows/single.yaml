@@ -17,10 +17,18 @@ on:
         required: true
         default: 'main'
       namespace:
-        description: 'namespace under ghcr.io/jdolitsky/apko-compare'
+        description: 'namespace under ghcr.io/<org>/<repo>'
         type: string
         required: true
         default: 'testing'
+      comparebase:
+        description: 'base for images to compare to (optional), e.g. cgr.dev/chainguard; name and tag will be appended; "date" will be taken literally, e.g. 20230222'
+        type: string
+        required: false
+      compareappendtag:
+        description: 'string to add to tag of compared images, e.g. 20230222; if blank, will be ignored. Has no meaning if comparebase is blank'
+        type: string
+        required: false
 permissions:
   packages: write
   contents: read
@@ -115,11 +123,11 @@ jobs:
         run: |
           set -x
           export DOCKER_CONFIG="docker-tmp"
-          image="ghcr.io/jdolitsky/apko-compare/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
+          image="ghcr.io/${{ github.repository }}/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }}"
           ./apko/apko publish --debug \
             "${{ matrix.apkoConfig }}" \
             "$image"
-          echo "::set-output name=image::$image"
+          echo "image=${image}" >> $GITHUB_OUTPUT
       ## Write for matrix outputs workaround 
       - uses: cloudposse/github-action-matrix-outputs-write@main
         id: out
@@ -148,3 +156,37 @@ jobs:
           cat <<EOF | jq -r '.image | to_entries[] | .value'
           ${{ steps.read.outputs.result }}
           EOF
+
+  compare:
+    runs-on: ubuntu-latest
+    needs: [get-time,generate-matrix,build]
+    if: inputs.comparebase != ''
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+      - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v2.1.5
+        with:
+          go-version: 1.19
+          check-latest: true
+      - id: outputdir
+        name: Output Directory
+        run: |
+          OUTDIR=${RUNNER_TEMP}/results
+          mkdir -p $OUTDIR
+          echo "outputdir=${OUTDIR}" >> $GITHUB_OUTPUT
+      - id: compare
+        name: Compare
+        run: |
+           cd comparer
+           APPEND_TAG=${{ inputs.compareappendtag }}
+           [ -n "$APPEND_TAG" ] && APPEND_TAG="-${APPEND_TAG}"
+           go run . ${{ inputs.comparebase }}/${{ matrix.imageName}}:${{ matrix.apkoTargetTag }}${APPEND_TAG} ghcr.io/${{ github.repository }}/${{inputs.namespace}}/apko/${{matrix.imageName}}:${{matrix.apkoTargetTag}}-${{ needs.get-time.outputs.time }} --debug --ignore-timestamps --ignore-missing-image --save-file-pattern ${{ steps.outputdir.outputs.outputdir }}/compare-IMAGE-PLATFORM.txt
+      - name: Upload comparison files
+        uses: actions/upload-artifact@v3
+        with:
+          name: results
+          path: ${{ steps.outputdir.outputs.outputdir }}/*
+
